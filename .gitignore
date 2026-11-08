@@ -1,0 +1,19 @@
+# Arquivos que NÃO vão para o GitHub
+
+# Dados reais do estoque (o programa cria uma planilha vazia na primeira execução)
+estoque.xlsx
+~$*.xlsx
+
+# Executável e arquivos gerados pelo PyInstaller
+*.exe
+build/
+dist/
+*.spec
+
+# Cache do Python
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Arquivo de teste antigo (sem extensão)
+/estoque
