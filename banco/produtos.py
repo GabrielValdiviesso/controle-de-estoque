@@ -1,6 +1,6 @@
 """
-PRODUTOS: ADICIONAR, RETIRAR, EDITAR, EXCLUIR E LISTAR
-======================================================
+PRODUTOS: ADICIONAR, RETIRAR, EDITAR, EXCLUIR, CONSULTAR E LISTAR
+=================================================================
 As operações da aba "Estoque". Toda operação que muda algo também deixa um
 registro na aba "Movimentações" (ver historico.py).
 
@@ -33,7 +33,7 @@ def inserir(objeto, quantidade, valor, observacao=""):
         observacao – texto livre que vai para o histórico (opcional)
     Retorna a mensagem de sucesso (texto). Em caso de problema, ErroEstoque.
     """
-    objeto = objeto.strip()
+    objeto = str(objeto or "").strip()
     if not objeto:
         raise ErroEstoque("Digite o nome do objeto.")
     quantidade = validar_quantidade(quantidade)
@@ -152,6 +152,21 @@ def excluir(objeto, observacao=""):
     aba.delete_rows(linha[0].row)
     salvar(planilha)
     return f"'{item.objeto}' foi excluído do estoque ({item.quantidade} unidade(s))."
+
+
+def consultar(objeto):
+    """Situação atual de UM produto (funcionalidade "Consultar" do case).
+
+    Retorna um Item com: quantidade (total), reservado, bloqueado e disponivel.
+    Se o produto não existir, levanta ErroEstoque.
+    Exemplo:  banco.consultar("caneta").disponivel  →  7
+    """
+    planilha = abrir_leitura()  # só leitura: não trava nem altera o arquivo
+    try:
+        _, item = item_com_saldo(planilha.worksheets[0], planilha[config.ABA_MOV], objeto)
+        return item
+    finally:
+        planilha.close()
 
 
 def listar_itens():

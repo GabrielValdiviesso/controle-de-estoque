@@ -28,7 +28,7 @@ from .historico import TIPOS_ENTRADA, TIPOS_SAIDA, listar_historico, quantidade_
 from .importacao import criar_modelo, inserir_lista, ler_lista
 from .modelos import ErroEstoque, Item, Movimento, Registro, Requisicao
 from .planilha import criar_banco
-from .produtos import editar, excluir, inserir, listar_itens, retirar
+from .produtos import consultar, editar, excluir, inserir, listar_itens, retirar
 from .relatorio import AGRUPAMENTOS, PERIODOS, gerar_pdf_movimentacao, nomes_produtos, periodo_do_atalho
 from .requisicoes import cancelar_requisicao, criar_requisicao, listar_requisicoes
 from .reservas import bloquear, dar_baixa, liberar, listar_movimentos, reservar

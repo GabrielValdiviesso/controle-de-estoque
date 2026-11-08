@@ -19,6 +19,7 @@ funções daqui em vez de mexer no arquivo diretamente.
        salvar(planilha)                   # 3. grava (só aqui o arquivo muda)
    Se der erro antes do salvar(), o arquivo fica como estava.
 """
+import os
 from datetime import datetime
 
 from openpyxl import Workbook, load_workbook
@@ -113,15 +114,28 @@ def abrir_leitura():
 
 
 def salvar(planilha):
-    """Grava a planilha no disco.
+    """Grava a planilha no disco de forma ATÔMICA (tudo ou nada).
+
+    Como funciona:
+      1. grava tudo num arquivo temporário (estoque.xlsx.tmp), ao lado do original;
+      2. só se a gravação terminar inteira, troca o original pelo temporário
+         (os.replace: a troca é instantânea, feita pelo sistema operacional).
+    Se o programa ou o computador cair no meio do passo 1, o estoque.xlsx
+    original continua intacto — no máximo sobra um .tmp, que é descartado.
 
     O erro mais comum é o arquivo estar aberto no Excel (o Windows bloqueia a
     gravação). Nesse caso, transformamos o erro técnico numa mensagem amigável.
     """
+    temporario = config.ARQUIVO.with_name(config.ARQUIVO.name + ".tmp")
     try:
-        planilha.save(config.ARQUIVO)
-    except PermissionError:
+        planilha.save(temporario)
+        os.replace(temporario, config.ARQUIVO)
+    except PermissionError:  # arquivo aberto no Excel
         raise ErroEstoque("Feche o estoque.xlsx no Excel e tente de novo.")
+    except OSError as erro:  # disco cheio, pasta sem permissão, etc.
+        raise ErroEstoque(f"Não foi possível gravar o estoque ({erro.strerror or erro}). Nada foi alterado.")
+    finally:
+        temporario.unlink(missing_ok=True)  # se sobrou um .tmp (falha no meio), apaga
 
 
 # ================================================================== procurar dados
@@ -184,7 +198,7 @@ def item_com_saldo(aba, aba_mov, objeto):
     """
     linha = achar_linha(aba, objeto)
     if not linha:
-        raise ErroEstoque(f"'{objeto.strip()}' não existe no estoque.")
+        raise ErroEstoque(f"'{str(objeto).strip()}' não existe no estoque.")
     item = Item(str(linha[0].value), linha[1].value or 0, linha[2].value or 0)
     movimentos = [m for _, m in ler_movimentos(aba_mov)]
     return linha, somar_comprometido(item, movimentos)

@@ -13,14 +13,16 @@ Estrutura do projeto:
 
   estoque.py         ← você está aqui (menu do terminal)
   tela.py            ← janela gráfica
-  estoque.xlsx       ← o banco de dados (abas "Estoque" e "Reservas e Bloqueios")
+  estoque.xlsx       ← o banco de dados (abas Estoque, Reservas e Bloqueios,
+                       Movimentações e Requisições)
+  tests/             ← testes automatizados (python -m pytest -v)
   banco/             ← a lógica, dividida por assunto:
       config.py        nome do arquivo, colunas, status       (bom para começar)
       modelos.py       formato dos dados (Item, Movimento)
-      utilidades.py    formatar R$/datas, converter números
-      planilha.py      abrir/salvar o Excel
+      utilidades.py    formatar R$/datas, converter e validar números
+      planilha.py      abrir/salvar o Excel (gravação atômica)
       historico.py     registrar e consultar movimentações
-      produtos.py      adicionar, retirar, editar, excluir
+      produtos.py      adicionar, retirar, editar, excluir, consultar
       reservas.py      reservar, bloquear, liberar, dar baixa
       requisicoes.py   pedidos de produtos (baixa automática na entrada)
       importacao.py    importar lista .xlsx/.csv
@@ -49,6 +51,17 @@ def listar():
               f"{moeda(i.valor):>13}{moeda(i.valor_total):>15}")
     print("-" * 79)
     print(f"{'VALOR TOTAL DO ESTOQUE':<64}{moeda(sum(i.valor_total for i in itens)):>15}")
+
+
+def consultar(objeto):
+    """Mostra a situação atual de UM produto (total, reservado, bloqueado, disponível)."""
+    i = banco.consultar(objeto)  # produto inexistente → ErroEstoque (mostrado pelo menu)
+    print(f"\n{i.objeto}")
+    print(f"  Total:      {i.quantidade}")
+    print(f"  Reservado:  {i.reservado}")
+    print(f"  Bloqueado:  {i.bloqueado}")
+    print(f"  Disponível: {i.disponivel}")
+    print(f"  Valor unitário: {moeda(i.valor)}   Valor total: {moeda(i.valor_total)}")
 
 
 def listar_ativos():
@@ -117,7 +130,7 @@ def menu():
         print("\n===== ESTOQUE =====")
         print("1 - Inserir objeto")
         print("2 - Retirar objeto")
-        print("3 - Ver estoque")
+        print("3 - Consultar produto / ver estoque")
         print("4 - Reservar")
         print("5 - Bloquear")
         print("6 - Ver reservas e bloqueios ativos")
@@ -146,7 +159,11 @@ def menu():
                 obs = pedir_texto("Observação (opcional): ", False)
                 print(banco.retirar(objeto, quantidade, obs))
             elif opcao == "3":
-                listar()
+                objeto = pedir_texto("Produto (Enter = ver todos): ", False)
+                if objeto:
+                    consultar(objeto)
+                else:
+                    listar()
             elif opcao in ("4", "5"):
                 objeto = pedir_texto("Objeto: ")
                 quantidade = pedir_numero("Quantidade: ", True, "quantidade")

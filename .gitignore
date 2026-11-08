@@ -2,6 +2,7 @@
 
 # Dados reais do estoque (o programa cria uma planilha vazia na primeira execução)
 estoque.xlsx
+estoque.xlsx.tmp
 ~$*.xlsx
 
 # Executável e arquivos gerados pelo PyInstaller

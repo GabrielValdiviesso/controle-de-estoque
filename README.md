@@ -8,7 +8,7 @@ interface gráfica, menu no terminal e uma planilha **Excel** como base de dados
   <img src="docs/imagens/inicio.png" width="420" alt="Tela inicial">
 </p>
 
-**Execução rápida:** `pip install -r requirements.txt` → `python tela.py` · Testes: `python -m pytest -v`
+**Execução rápida** (Python 3.11+): `python -m pip install -r requirements.txt` → `python tela.py` · Testes: `python -m pytest -v`
 
 ---
 
@@ -29,7 +29,7 @@ um tem sua própria identificação (`R0001`, `B0003`…), usada para consultar 
 | **Reservar** | Separa unidades disponíveis para um pedido e gera um ID (`R0001`, `R0002`…) |
 | **Bloquear** | Torna unidades indisponíveis (avaria, inspeção, mercadoria ainda não liberada para venda) e gera um ID (`B0001`…) |
 | **Liberar** | Encerra a reserva ou o bloqueio pelo ID. As unidades voltam ao disponível |
-| **Consultar** | Mostra total, disponível, reservado e bloqueado de cada produto, com busca instantânea |
+| **Consultar** | `banco.consultar(produto)` devolve total, disponível, reservado e bloqueado de um produto. Na janela, a busca é instantânea; no terminal, use a opção 3 |
 
 **Exemplo de uso no varejo:** uma mercadoria que acabou de chegar pode ser **bloqueada** até ser conferida e
 liberada para venda na loja física ou online. Quando um cliente pede que os produtos sejam separados, eles são
@@ -85,16 +85,18 @@ pacote `banco`, e só o módulo `planilha.py` acessa o arquivo Excel.
 │   ├── config.py          Nome do arquivo, abas, colunas, tipos e status
 │   ├── modelos.py         Formato dos dados e a exceção ErroEstoque
 │   ├── utilidades.py      Formatação, conversão e validação de quantidades/valores
-│   ├── planilha.py        Abrir, criar e salvar o Excel; cálculo do saldo
-│   ├── produtos.py        Entrada, saída, editar, excluir, listar
+│   ├── planilha.py        Abrir, criar e salvar o Excel (gravação atômica); cálculo do saldo
+│   ├── produtos.py        Entrada, saída, consultar, editar, excluir, listar
 │   ├── reservas.py        Reservar, bloquear, liberar, dar baixa
 │   ├── historico.py       Registro das movimentações
 │   ├── requisicoes.py     Pedidos de produtos (extra)
 │   ├── importacao.py      Importar lista .xlsx/.csv (extra)
 │   └── relatorio.py       Relatório em PDF com gráficos (extra)
 ├── tests/               Testes automatizados (pytest)
+├── docs/imagens/        Capturas de tela usadas neste README
 ├── requirements.txt     Bibliotecas
-└── gerar_exe.bat        Gera o executável Windows
+├── gerar_exe.bat        Gera o executável Windows (opcional)
+└── preparar_github.py   Ferramenta de desenvolvimento: copia o projeto, sem dados, para publicação
 ```
 
 ### Modelo de dados (abas da planilha)
@@ -113,7 +115,8 @@ pacote `banco`, e só o módulo `planilha.py` acessa o arquivo Excel.
 2. abrir()         → carrega a planilha na memória
 3. validar regra   → produto existe? há disponível suficiente? o ID está ativo?
 4. alterar         → muda as células na memória e registra no histórico
-5. salvar()        → só aqui o arquivo é gravado, com todas as abas juntas
+5. salvar()        → só aqui o arquivo é gravado, com todas as abas juntas:
+                     grava em estoque.xlsx.tmp e só no fim troca pelo original (atômico)
 ```
 
 ---
@@ -149,6 +152,11 @@ mensagem clara em português) interrompe a operação, e o arquivo continua exat
 quantidade ficam **na camada de regras**, não só na tela. Assim, nenhum caminho (tela, terminal, testes ou uma
 futura API) consegue gravar uma quantidade inválida.
 
+**Gravação atômica.** A planilha é gravada primeiro num arquivo temporário, que só substitui o original quando a
+gravação termina inteira. A troca é instantânea, feita pelo sistema operacional (`os.replace`). Se o programa ou
+o computador cair no meio, o `estoque.xlsx` continua intacto. Foi a forma mais simples de dar ao Excel uma garantia
+parecida com a de uma transação, sem trocar de tecnologia.
+
 **Separação em camadas.** Interface, regras e persistência separadas permitem testar as regras sem abrir a janela,
 oferecer duas interfaces (gráfica e terminal) com as mesmas regras e trocar o Excel por outro banco de dados sem
 reescrever o sistema.
@@ -176,8 +184,8 @@ reescrever o sistema.
 - **Acesso simultâneo:** não há controle de concorrência. Com dois programas abertos ao mesmo tempo, a última
   gravação sobrescreve a anterior. Por exemplo, duas pessoas poderiam reservar as mesmas últimas unidades. A solução
   hoje é pensada para uso por uma pessoa por vez.
-- **Integridade do arquivo:** a gravação não é atômica e não há backup automático. Uma queda de energia durante a
-  gravação pode corromper a planilha.
+- **Backup:** a gravação é atômica, então uma queda de energia não corrompe a planilha. Mas não há backup
+  automático: se o arquivo for apagado ou o disco falhar, os dados se perdem.
 - **Desempenho em grande escala:** a leitura é otimizada (modo somente leitura, busca com limite de exibição), mas
   cada gravação reescreve o arquivo inteiro. Com 100 mil produtos, cada operação leva cerca de 10 segundos. Escolhi
   priorizar as funcionalidades em vez dessa otimização.
@@ -191,12 +199,13 @@ reescrever o sistema.
 
 ## 6. Instruções para execução
 
-**Pré-requisito:** Python 3.10 ou mais novo (na instalação, marcar *"Add Python to PATH"*).
+**Pré-requisito:** Python **3.11 ou mais novo** (na instalação, marcar *"Add Python to PATH"*). Verificado no
+Windows: testes automatizados no Python 3.11 e 3.13; programa completo (janela e terminal) no 3.13.
 
 ```bash
 git clone https://github.com/GabrielValdiviesso/controle-de-estoque.git
 cd controle-de-estoque
-pip install -r requirements.txt
+python -m pip install -r requirements.txt
 
 python tela.py        # janela gráfica
 python estoque.py     # menu no terminal
@@ -215,12 +224,12 @@ botão **Baixar modelo**, na tela, gera um arquivo de exemplo.
 
 ## 7. Testes automatizados
 
-São **77 testes** com **pytest**, que rodam em cerca de 10 segundos (`python -m pytest -v`).
+São **79 testes** com **pytest**, que rodam em cerca de 10 segundos (`python -m pytest -v`).
 
 | Arquivo | O que cobre |
 |---|---|
-| `tests/test_regras_do_case.py` | As 6 funcionalidades do case, nos casos de sucesso e nos de recusa: saída, reserva e bloqueio acima do disponível; várias reservas e bloqueios simultâneos; liberar duas vezes ou um ID inexistente; IDs não reaproveitados |
-| `tests/test_consistencia.py` | **Operação inválida não altera o arquivo**: compara o hash da planilha antes e depois de cada recusa. Também cobre quantidades inválidas (0, negativa, fracionada, texto) em todas as operações, importação com um item inválido (nada é gravado), planilha bloqueada pelo Excel e registro no histórico |
+| `tests/test_regras_do_case.py` | As 6 funcionalidades do case, nos casos de sucesso e nos de recusa: saída, reserva e bloqueio acima do disponível; várias reservas e bloqueios simultâneos; liberar duas vezes ou um ID inexistente; IDs não reaproveitados; consulta de um produto |
+| `tests/test_consistencia.py` | **Operação inválida não altera o arquivo**: compara o hash da planilha antes e depois de cada recusa. Também cobre quantidades inválidas (0, negativa, fracionada, texto) em todas as operações, importação com um item inválido (nada é gravado), planilha bloqueada pelo Excel, **queda no meio da gravação** (o original continua intacto) e registro no histórico |
 | `tests/test_requisicoes.py` | Atendimento automático das requisições na entrada (extra) |
 
 **Estratégia.** Os testes focam a **camada de regras** (`banco`), porque é ela que garante a consistência do
@@ -237,8 +246,8 @@ levou a validação para a camada de regras, e os testes impedem que o bug volte
 
 **O que não foi testado, e por quê:**
 - **Interface gráfica:** foi verificada manualmente. O risco está nas regras, que já estão cobertas.
-- **Concorrência e falha durante a gravação:** são limitações conhecidas da persistência em Excel. A solução é
-  trocar a persistência (ver seção 8), não testar um comportamento que já se sabe falho.
+- **Concorrência (dois programas ao mesmo tempo):** é uma limitação conhecida da persistência em Excel. A solução
+  é trocar a persistência (ver seção 8), não testar um comportamento que já se sabe falho.
 - **Relatório em PDF e importação de arquivos:** extras, testados manualmente durante o desenvolvimento.
 
 ---
@@ -277,6 +286,7 @@ Ferramenta: **Claude** (Claude Code, extensão do VS Code), usada do início ao 
 | 8 | "Requisição: pedidos de produtos, com baixa automática quando o produto der entrada." | Módulo de requisições |
 | 9 | "[PDF do case] Faça as checagens se tudo que foi feito até agora está nos conformes." | Encontrou o bug de validação e os entregáveis que faltavam |
 | 10 | "Quais testes de segurança contra erros foram feitos?" | Revelou que os testes eram manuais, o que levou à suíte pytest |
+| 11 | "Reavalie o case, o README e os testes para que tudo fique perfeito, e refaça o teste de download do GitHub." | Encontrou a incompatibilidade com Python 3.10, adicionou `consultar(produto)` e a gravação atômica, e repetiu a instalação do zero |
 
 ### 9.2 Análise crítica
 
@@ -301,6 +311,9 @@ relatório), para manter o controle sobre as decisões.
   tinham sido feitos, ficou claro que era preciso uma suíte automatizada.
 - **Erro nos próprios testes.** Um teste gerado pela IA desfazia a configuração da planilha temporária e passava a
   ler o arquivo real. O problema apareceu ao rodar a suíte e foi corrigido antes da entrega.
+- **Afirmação não verificada.** O README gerado pela IA dizia "Python 3.10 ou mais novo", mas a versão do Pillow
+  usada não funciona no 3.10. Na reavaliação final, a compatibilidade foi testada de verdade: o requisito passou a
+  ser 3.11+, e os testes foram rodados no Python 3.11 oficial. Lição: documentação também precisa ser testada.
 - **Problemas de interface** (texto que sumia do campo de busca, elementos que não cabiam na janela, mensagens com
   gênero errado como "inválido(a)") só foram percebidos ao usar o programa e conferir as telas.
 
@@ -309,8 +322,8 @@ relatório), para manter o controle sobre as decisões.
 ## 10. Visão de engenharia: 5 aspectos mais importantes
 
 1. **Consistência dos dados.** O número do estoque precisa ser confiável. Por isso o disponível é calculado e não
-   armazenado, e toda operação valida tudo antes de gravar. Um estoque que mostra um número errado leva a vender o
-   que não existe.
+   armazenado, toda operação valida tudo antes de gravar e a gravação é atômica. Um estoque que mostra um número
+   errado leva a vender o que não existe.
 2. **Regras centralizadas e protegidas por testes automatizados.** As regras ficam num único lugar (a camada
    `banco`) e cada uma tem testes. O bug do `retirar(-5)` mostrou o risco de deixar validação só na interface, e
    os testes garantem que uma mudança futura não quebre o que já funciona.
@@ -329,7 +342,7 @@ relatório), para manter o controle sobre as decisões.
 
 | Biblioteca | Uso |
 |---|---|
-| Python 3.10+ | Linguagem |
+| Python 3.11+ | Linguagem |
 | [openpyxl](https://openpyxl.readthedocs.io/) | Ler e gravar o Excel |
 | [CustomTkinter](https://github.com/TomSchimansky/CustomTkinter) + [Pillow](https://python-pillow.org/) | Interface gráfica e ícones |
 | [ReportLab](https://www.reportlab.com/opensource/) | Relatório em PDF (extra) |

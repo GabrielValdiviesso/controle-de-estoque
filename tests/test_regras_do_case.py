@@ -189,10 +189,18 @@ def test_dar_baixa_tira_do_total_e_do_reservado():
 
 def test_consultar_mostra_total_disponivel_reservado_e_bloqueado():
     banco.inserir("Caneta", 50, 2.5)
+    banco.inserir("Borracha", 8, 1.0)
     banco.reservar("Caneta", 10, "Pedido")
     banco.bloquear("Caneta", 5, "Avaria")
-    item = situacao("Caneta")
+    item = banco.consultar("caneta")  # nome em minúsculas também encontra
+    assert item.objeto == "Caneta"
     assert item.quantidade == 50
     assert item.reservado == 10
     assert item.bloqueado == 5
     assert item.disponivel == 35  # 50 − 10 − 5
+    assert banco.consultar("Borracha").disponivel == 8  # o outro produto não é afetado
+
+
+def test_consultar_produto_inexistente_e_recusado():
+    with pytest.raises(ErroEstoque):
+        banco.consultar("Lápis")

@@ -112,6 +112,30 @@ def test_arquivo_aberto_no_excel_vira_mensagem_amigavel(monkeypatch, planilha_te
     assert situacao("Caneta").quantidade == 10  # a retirada não aconteceu
 
 
+def test_queda_no_meio_da_gravacao_nao_corrompe_o_arquivo(monkeypatch, planilha_temporaria):
+    """Simula o computador caindo NO MEIO da gravação (arquivo escrito pela metade).
+
+    Graças à gravação atômica (grava num .tmp e só depois troca), o
+    estoque.xlsx original continua inteiro e o .tmp incompleto é descartado.
+    """
+    banco.inserir("Caneta", 10, 2.5)
+    antes = impressao_digital(planilha_temporaria)
+
+    def grava_pela_metade(self, caminho):
+        with open(caminho, "wb") as f:
+            f.write(b"PK\x03\x04 metade de um arquivo")  # lixo: um xlsx incompleto
+        raise OSError(28, "No space left on device")      # e então falha (ex.: disco cheio)
+
+    with monkeypatch.context() as m:
+        m.setattr(Workbook, "save", grava_pela_metade)
+        with pytest.raises(ErroEstoque, match="Nada foi alterado"):
+            banco.retirar("Caneta", 4)
+
+    assert impressao_digital(planilha_temporaria) == antes            # original intacto
+    assert not planilha_temporaria.with_name(planilha_temporaria.name + ".tmp").exists()  # sem lixo
+    assert banco.consultar("Caneta").quantidade == 10                 # e continua legível
+
+
 # ================================================================== histórico (auditoria)
 
 def test_toda_operacao_fica_registrada_no_historico():
